@@ -3,5 +3,37 @@
   "version": 1,
   "newProjectRoot": "projects",
   "projects": {
-  }
+    "ngx-http-cache": {
+      "projectType": "library",
+      "root": "projects/ngx-http-cache",
+      "sourceRoot": "projects/ngx-http-cache/src",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:ng-packagr",
+          "options": {
+            "project": "projects/ngx-http-cache/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/ngx-http-cache/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/ngx-http-cache/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "test": {
+          "builder": "@angular-devkit/build-angular:karma",
+          "options": {
+            "main": "projects/ngx-http-cache/src/test.ts",
+            "tsConfig": "projects/ngx-http-cache/tsconfig.spec.json",
+            "karmaConfig": "projects/ngx-http-cache/karma.conf.js"
+          }
+        }
+      }
+    }
+  },
+  "defaultProject": "ngx-http-cache"
 }
