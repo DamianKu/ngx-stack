@@ -1,5 +1,5 @@
 /*
- * Public API Surface of ngx-http-merge-context
+ * Public API Surface of merge-http-context
  */
 
-export * from './lib/ngx-http-merge-context';
+export * from './lib/merge-http-context';
