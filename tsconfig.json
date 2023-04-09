@@ -16,9 +16,9 @@
         "dist/ngx-http-cache/ngx-http-cache",
         "dist/ngx-http-cache"
       ],
-      "ngx-http-merge-context": [
-        "dist/ngx-http-merge-context/ngx-http-merge-context",
-        "dist/ngx-http-merge-context"
+      "merge-http-context": [
+        "dist/merge-http-context/merge-http-context",
+        "dist/merge-http-context"
       ]
     },
     "experimentalDecorators": true,

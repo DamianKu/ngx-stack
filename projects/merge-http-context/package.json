@@ -1,5 +1,5 @@
 {
-  "name": "@ngx-stack/ngx-http-merge-context",
+  "name": "@ngx-stack/merge-http-context",
   "version": "1.0.0",
   "peerDependencies": {
     "@angular/common": "^12.2.0",

@@ -1,4 +1,4 @@
-# @ngx-stack/ngx-http-merge-context
+# @ngx-stack/merge-http-context
 
 The utility library for merging multiple Angular `HttpContext`s.
 
@@ -7,13 +7,13 @@ The utility library for merging multiple Angular `HttpContext`s.
 Install with [npm](https://www.npmjs.com/):
 
 ```sh
-$ npm install @ngx-stack/ngx-http-merge-context
+$ npm install @ngx-stack/merge-http-context
 ```
 
 ## Usage
 
 ```ts
-import { mergeHttpContext } from "@ngx-stack/ngx-http-merge-context";
+import { mergeHttpContext } from "@ngx-stack/merge-http-context";
 
 ...
 

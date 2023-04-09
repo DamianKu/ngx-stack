@@ -1,5 +1,5 @@
 import { HttpContext, HttpContextToken } from "@angular/common/http";
-import { mergeHttpContext } from "./ngx-http-merge-context";
+import { mergeHttpContext } from "./merge-http-context";
 
 const TEST_TOKEN_1 = new HttpContextToken<string>(() => "TOKEN:1");
 const TEST_TOKEN_2 = new HttpContextToken<string>(() => "TOKEN:2");
@@ -79,7 +79,7 @@ const TEST_CASES: {
         }
     ];
 
-describe('NgxMergeHttpContext', () => {
+describe('MergeHttpContext', () => {
     it('should return empty HttpContext if nothing provided', () => {
         const result = mergeHttpContext();
 
