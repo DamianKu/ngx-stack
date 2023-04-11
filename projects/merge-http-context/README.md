@@ -15,9 +15,19 @@ $ npm install @ngx-stack/merge-http-context
 ```ts
 import { mergeHttpContext } from "@ngx-stack/merge-http-context";
 
-...
+@Injectable()
+export class AppService {
+    private cacheContext: HttpContext = new HttpContext().set(CACHE_TOKEN, true);
 
-this.http.get(URL, {
-    context: mergeHttpContext(new HttpContext().set(SOME_TOKEN, "12345"), CACHE_CONTEXT)
-});
+    constructor(private http: HttpClient) {}
+
+    public getSomething(): Observable<any>{
+        return this.http.get(URL, {
+            context: mergeHttpContext(
+                new HttpContext().set(ID_TOKEN, "some value"),
+                CACHE_CONTEXT
+            )
+        });
+    }
+}
 ```

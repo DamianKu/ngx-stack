@@ -1,11 +1,21 @@
 {
   "name": "@ngx-stack/merge-http-context",
   "version": "1.0.0",
+  "license": "MIT",
   "peerDependencies": {
     "@angular/common": "^12.2.0",
     "@angular/core": "^12.2.0"
   },
   "dependencies": {
     "tslib": "^2.3.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DamianKu/ngx-stack/tree/main/projects/merge-http-context"
+  },
+  "keywords": [
+    "angular",
+    "HttpClient",
+    "HttpContext"
+  ]
 }
