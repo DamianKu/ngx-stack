@@ -12,9 +12,9 @@
     "declaration": false,
     "downlevelIteration": true,
     "paths": {
-      "ngx-http-cache": [
-        "dist/ngx-http-cache/ngx-http-cache",
-        "dist/ngx-http-cache"
+      "http-cache": [
+        "dist/http-cache/http-cache",
+        "dist/http-cache"
       ],
       "merge-http-context": [
         "dist/merge-http-context/merge-http-context",
