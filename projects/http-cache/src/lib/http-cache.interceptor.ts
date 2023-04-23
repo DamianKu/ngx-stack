@@ -27,7 +27,7 @@ export class HttpCacheInterceptor implements HttpInterceptor {
    */
   private handleCacheRequest<T>(request: HttpRequest<T>, next: HttpHandler): Observable<HttpEvent<T>> {
     return this.cacheService.isCached(request)
-      ? this.cacheService.getCached(request)
+      ? this.cacheService.getCached(request)!
       : this.createCache(request, next);
   }
 
@@ -47,8 +47,8 @@ export class HttpCacheInterceptor implements HttpInterceptor {
         filter(response => response.type === HttpEventType.Response),
         tap(response => this.cacheService.cacheResponse(request, response as HttpResponse<T>)),
         finalize(() => {
-          if (!this.cacheService.getCached(request).isComplete()) {
-            // Http observable was canceled before finishing. Clear cache as it will never resolve
+          if (!this.cacheService.getCached(request)?.isComplete()) {
+            // Http observable was canceled before finishing. Clear cache entry as it will never resolve
             this.cacheService.deleteCache(request);
           }
         })

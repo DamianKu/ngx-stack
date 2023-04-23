@@ -24,8 +24,7 @@ export class CacheReplaySubject<T> extends ReplaySubject<HttpResponse<T>> {
 
 @Injectable()
 export class HttpCacheService {
-  private readonly cache: Map<string, CacheReplaySubject<unknown>> = new Map();
-
+  private readonly cache: Map<string, CacheReplaySubject<any>> = new Map();
 
   /**
    * Check if {@link HttpRequest} is cached.
@@ -41,8 +40,8 @@ export class HttpCacheService {
    * @param {string} urlWithParams
    * @returns {CacheReplaySubject}
    */
-  public getCached<T>({ urlWithParams }: HttpRequest<T>): CacheReplaySubject<T> {
-    return this.cache.get(urlWithParams) as CacheReplaySubject<T>;
+  public getCached<T>({ urlWithParams }: HttpRequest<T>): CacheReplaySubject<T> | undefined {
+    return this.cache.get(urlWithParams);
   }
 
   /**
@@ -72,11 +71,11 @@ export class HttpCacheService {
    */
   public cacheResponse<T>(request: HttpRequest<T>, response: HttpResponse<T>): void {
     const sub = this.getCached(request);
-    sub.next(response);
+    sub?.next(response);
 
     /*
       Complete CacheReplaySubject to allow promisified observables to resolve.
      */
-    sub.complete();
+    sub?.complete();
   }
 }
