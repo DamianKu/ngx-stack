@@ -27,21 +27,31 @@ export class HttpCacheService {
   private readonly cache: Map<string, CacheReplaySubject<any>> = new Map();
 
   /**
+   * Create {@code string} key used by internal cache.
+   * If input parameter is {@link HttpReqeust}, `urlWithParams` property will be used as a key.
+   * @param {HttpRequest | string} requestOrKey {@link HttpReqeust} or {@code string} key of cache entry
+   * @returns key
+   */
+  private static getKey<T>(requestOrKey: HttpRequest<T> | string): string {
+    return requestOrKey instanceof HttpRequest ? requestOrKey.urlWithParams : requestOrKey;
+  }
+
+  /**
    * Check if {@link HttpRequest} is cached.
-   * @param {string} urlWithParams
+   * @param {HttpRequest | string} requestOrKey {@link HttpReqeust} or {@code string} key of cache entry
    * @returns {boolean}
    */
-  public isCached<T>({ urlWithParams }: HttpRequest<T>): boolean {
-    return this.cache.has(urlWithParams);
+  public isCached<T>(requestOrKey: HttpRequest<T> | string): boolean {
+    return this.cache.has(HttpCacheService.getKey(requestOrKey));
   }
 
   /**
    * Retrieve {@link CacheReplaySubject} for cached {@link HttpRequest}.
-   * @param {string} urlWithParams
+   * @param {HttpRequest | string} requestOrKey {@link HttpReqeust} or {@code string} key of cache entry
    * @returns {CacheReplaySubject}
    */
-  public getCached<T>({ urlWithParams }: HttpRequest<T>): CacheReplaySubject<T> | undefined {
-    return this.cache.get(urlWithParams);
+  public getCached<T>(requestOrKey: HttpRequest<T> | string): CacheReplaySubject<T> | undefined {
+    return this.cache.get(HttpCacheService.getKey(requestOrKey));
   }
 
   /**
@@ -50,27 +60,27 @@ export class HttpCacheService {
    * When initializing cache we create new {@link CacheReplaySubject} and store that. 
    * We do that so we can return this observable when another {@link HttpRequest} is made to the same URL. 
    * Returning this observable prevents {@link HttpClient} from making multiple calls.  
-   * @param {string} urlWithParams
+   * @param {HttpRequest | string} requestOrKey {@link HttpReqeust} or {@code string} key of cache entry
    */
-  public initCache<T>({ urlWithParams }: HttpRequest<T>): void {
-    this.cache.set(urlWithParams, new CacheReplaySubject());
+  public initCache<T>(requestOrKey: HttpRequest<T> | string): void {
+    this.cache.set(HttpCacheService.getKey(requestOrKey), new CacheReplaySubject());
   }
 
   /**
    * Detele {@link CacheReplaySubject} for {@link HttpRequest}.
-   * @param {string} urlWithParams
+   * @param {HttpRequest | string} requestOrKey {@link HttpReqeust} or {@code string} key of cache entry
    */
-  public deleteCache<T>({ urlWithParams }: HttpRequest<T>): void {
-    this.cache.delete(urlWithParams);
+  public deleteCache<T>(requestOrKey: HttpRequest<T> | string): void {
+    this.cache.delete(HttpCacheService.getKey(requestOrKey));
   }
 
   /**
    * Cache {@link HttpResponse} for given {@link HttpRequest}.
-   * @param {HttpRequest<T>} request 
+   * @param {HttpRequest | string} requestOrKey {@link HttpReqeust} or {@code string} key of cache entry
    * @param {HttpResponse<T>} response 
    */
-  public cacheResponse<T>(request: HttpRequest<T>, response: HttpResponse<T>): void {
-    const sub = this.getCached(request);
+  public cacheResponse<T>(requestOrKey: HttpRequest<T> | string, response: HttpResponse<T>): void {
+    const sub = this.getCached(HttpCacheService.getKey(requestOrKey));
     sub?.next(response);
 
     /*

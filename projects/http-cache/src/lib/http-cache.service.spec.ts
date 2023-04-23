@@ -3,7 +3,7 @@ import { CacheReplaySubject, HttpCacheService } from "./http-cache.service";
 import { HttpRequest, HttpResponse } from "@angular/common/http";
 
 function createMockHttpRequest(urlWithParams = 'www.url.com?id=15') {
-  return { urlWithParams } as HttpRequest<any>;
+  return new HttpRequest('GET', urlWithParams);
 }
 
 describe('HttpCacheService', () => {
@@ -22,11 +22,13 @@ describe('HttpCacheService', () => {
     it('should return true if HttpRequest is cached ', () => {
       const mockHttpRequest = createMockHttpRequest();
       expect(httpCacheService.isCached(mockHttpRequest)).toEqual(false);
+      expect(httpCacheService.isCached(mockHttpRequest.urlWithParams)).toEqual(false);
 
       // Initialize cache for mocked request
       httpCacheService.initCache(mockHttpRequest);
 
       expect(httpCacheService.isCached(mockHttpRequest)).toEqual(true);
+      expect(httpCacheService.isCached(mockHttpRequest.urlWithParams)).toEqual(true);
     });
   });
 
@@ -36,9 +38,9 @@ describe('HttpCacheService', () => {
       expect(httpCacheService.getCached(mockHttpRequest)).toBeUndefined();
 
       // Initialize cache for mocked request
-      httpCacheService.initCache(mockHttpRequest);
+      httpCacheService.initCache(mockHttpRequest.urlWithParams);
 
-      const cacheObs = httpCacheService.getCached(mockHttpRequest);
+      const cacheObs = httpCacheService.getCached(mockHttpRequest.urlWithParams);
 
       expect(cacheObs).toBeInstanceOf(CacheReplaySubject);
     });
@@ -79,13 +81,13 @@ describe('HttpCacheService', () => {
       httpCacheService.initCache(mockHttpRequest1);
       httpCacheService.initCache(mockHttpRequest2);
 
-      expect(httpCacheService.getCached(mockHttpRequest1)).not.toBeUndefined();
+      expect(httpCacheService.getCached(mockHttpRequest1.urlWithParams)).not.toBeUndefined();
       expect(httpCacheService.getCached(mockHttpRequest2)).not.toBeUndefined();
 
       httpCacheService.deleteCache(mockHttpRequest2);
 
       expect(httpCacheService.getCached(mockHttpRequest1)).not.toBeUndefined();
-      expect(httpCacheService.getCached(mockHttpRequest2)).toBeUndefined();
+      expect(httpCacheService.getCached(mockHttpRequest2.urlWithParams)).toBeUndefined();
 
       httpCacheService.deleteCache(mockHttpRequest1);
 
