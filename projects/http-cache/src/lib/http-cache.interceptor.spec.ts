@@ -1,14 +1,21 @@
 
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
-import { HTTP_INTERCEPTORS, HttpClient, HttpEventType, HttpHeaders } from '@angular/common/http';
+import { HTTP_INTERCEPTORS, HttpClient, HttpContext, HttpEvent, HttpEventType, HttpRequest } from '@angular/common/http';
 import { HttpCacheInterceptor } from './http-cache.interceptor';
-import { TestBed, waitForAsync } from '@angular/core/testing';
-import { Observable, of, Subject } from 'rxjs';
-import createSpy = jasmine.createSpy;
+import { TestBed, fakeAsync } from '@angular/core/testing';
+import { pipe } from 'rxjs';
+import { HTTP_CACHE_TOKEN, cacheRequest } from './http-cache';
+import { HttpCacheService } from './http-cache.service';
+import { filter, map } from 'rxjs/operators';
+
+function httpClientTestRequestPipe() {
+  return pipe(
+    filter((res: HttpEvent<unknown>) => res.type === HttpEventType.Response),
+    map((res: any) => res.body),
+  )
+}
 
 describe('HttpCacheInterceptor', () => {
-
-  let interceptor: HttpCacheInterceptor;
   let http: HttpTestingController;
   let httpClient: HttpClient;
 
@@ -16,290 +23,109 @@ describe('HttpCacheInterceptor', () => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
+        HttpCacheService,
         { provide: HTTP_INTERCEPTORS, useClass: HttpCacheInterceptor, multi: true },
       ],
     });
 
     http = TestBed.inject(HttpTestingController);
     httpClient = TestBed.inject(HttpClient);
-    interceptor = TestBed.inject(HttpCacheInterceptor);
-
   });
-  //     HttpCacheInterceptor['cache'].clear();
 
-  //   describe('isCacheRequest', () => {
-  //     let headers: HttpHeaders;
-  //     beforeEach(() => {
-  //       headers = new HttpHeaders();
-  //     });
-  //     it('should return true if there is cache header in request headers', () => {
-  //       expect(HttpCacheInterceptor['isCacheRequest']({ headers } as any)).toEqual(false);
+  describe('intercept', () => {
 
-  //       headers = headers.set(HttpCacheInterceptor['cacheHeaderName'], '');
+    const NON_CACHING_CONTEXT: (HttpContext | undefined)[] = [
+      undefined,
+      new HttpContext(),
+      new HttpContext().set(HTTP_CACHE_TOKEN, false),
+    ];
 
-  //       expect(HttpCacheInterceptor['isCacheRequest']({ headers } as any)).toEqual(true);
-  //     });
-  //   });
+    NON_CACHING_CONTEXT.forEach(context => {
+      it('should do nothing if HttpRequest is not cachable', fakeAsync(() => {
+        const request = new HttpRequest('GET', 'URL', {}, { context });
 
-  //   describe('clearCacheHeaderFromReq', () => {
-  //     let request;
-  //     let cloneSpy;
-  //     beforeEach(() => {
-  //       spyOn<any>(HttpCacheInterceptor, 'clearHeaders').and.returnValue('clean headers');
-  //       cloneSpy = createSpy();
-  //       cloneSpy.and.returnValue('Request clone');
-  //       request = { clone: cloneSpy };
-  //     });
-  //     it('should return result of clone called on request with updated headers to the result of clearHeaders static method', () => {
-  //       expect(HttpCacheInterceptor['clearCacheHeaderFromReq'](request)).toEqual('Request clone' as any);
+        httpClient.request(request).subscribe();
+        httpClient.request(request).subscribe();
 
-  //       expect(HttpCacheInterceptor['clearHeaders']).toHaveBeenCalled();
-  //       expect(HttpCacheInterceptor['clearHeaders']).toHaveBeenCalledTimes(1);
-  //       expect(HttpCacheInterceptor['clearHeaders']).toHaveBeenCalledWith(request);
+        const req = http.match(request);
 
-  //       expect(cloneSpy).toHaveBeenCalled();
-  //       expect(cloneSpy).toHaveBeenCalledTimes(1);
-  //       expect(cloneSpy).toHaveBeenCalledWith({
-  //         headers: 'clean headers'
-  //       });
-  //     });
-  //   });
+        // 2 HTTP calls were made
+        expect(req.length).toEqual(2);
+        expect(req[0].request).toEqual(request);
+        expect(req[1].request).toEqual(request);
 
-  //   describe('isCached', () => {
-  //     const request: any = { urlWithParams: 'KEY_123' };
-  //     it('should return true if urlWithParams entry is defined in cache map', () => {
-  //       expect(HttpCacheInterceptor['isCached'](request)).toEqual(false);
+        http.verify();
+      }));
+    });
 
-  //       HttpCacheInterceptor['cache'].set(request.urlWithParams, '123' as any);
 
-  //       expect(HttpCacheInterceptor['isCached'](request)).toEqual(true);
-  //     });
-  //   });
+    const CACHING_CONTEXT: HttpContext[] = [
+      cacheRequest(),
+      new HttpContext().set(HTTP_CACHE_TOKEN, true),
+    ];
 
-  //   describe('getCached', () => {
-  //     const request: any = { urlWithParams: 'KEY_123' };
-  //     it('should return value from cache map', () => {
-  //       HttpCacheInterceptor['cache'].set(request.urlWithParams, '123' as any);
+    CACHING_CONTEXT.forEach(context => {
+      it('should make only one HTTP call if HttpRequest is cachable', fakeAsync(() => {
+        const request = new HttpRequest('GET', 'URL', {}, { context });
 
-  //       expect(HttpCacheInterceptor['getCached'](request)).toEqual('123' as any);
-  //     });
-  //   });
+        httpClient.request(request).subscribe();
+        httpClient.request(request).subscribe();
 
-  //   describe('setCacheSub', () => {
-  //     const request: any = { urlWithParams: 'KEY_123' };
-  //     it('should set new CacheReplaySubject in cache for given request', () => {
-  //       HttpCacheInterceptor['setCacheSub'](request);
+        const req = http.match(request);
 
-  //       expect(HttpCacheInterceptor['cache'].get(request.urlWithParams)).toEqual(new CacheReplaySubject(1));
-  //     });
-  //   });
+        expect(req.length).toEqual(1);
+        expect(req[0].request).toEqual(request);
 
-  //   describe('deleteCacheSub', () => {
-  //     it('should delete cache entry for given request', () => {
-  //       HttpCacheInterceptor['cache'].set('test', 'test' as any);
+        http.verify();
+      }));
 
-  //       expect(HttpCacheInterceptor['cache'].get('test')).toBeDefined();
-  //       HttpCacheInterceptor['deleteCacheSub']({ urlWithParams: 'test' } as any);
-  //       expect(HttpCacheInterceptor['cache'].get('test')).toBeUndefined();
-  //     });
-  //   });
+      it('should emit cached value', fakeAsync(() => {
+        const request = new HttpRequest('GET', 'URL', null, { context });
+        const response = { id: 123, data: { whoAmI: 'beep boop I am a computer' } };
 
-  //   describe('cacheResponse', () => {
-  //     const request: any = { urlWithParams: 'KEY_123' };
-  //     const response: any = { body: 123 };
-  //     let rSub: CacheReplaySubject<any>;
-  //     beforeEach(() => {
-  //       rSub = new CacheReplaySubject(1);
+        httpClient.request(request)
+          .pipe(httpClientTestRequestPipe())
+          .subscribe(r => expect(r).toEqual(response));
 
-  //       spyOn<any>(rSub, 'next').and.callThrough();
-  //       spyOn<any>(rSub, 'complete').and.callThrough();
+        httpClient.request(request)
+          .pipe(httpClientTestRequestPipe())
+          .subscribe(r => expect(r).toEqual(response));
 
-  //       HttpCacheInterceptor['cache'].set(request.urlWithParams, rSub);
-  //     });
-  //     it('should emit response on cached CacheReplaySubject', waitForAsync(() => {
+        // Only one request made
+        const req = http.expectOne(request);
+        req.flush(response);
 
-  //       HttpCacheInterceptor['cacheResponse'](request, response);
+        // HTTP is closed and cached value is emitted
+        httpClient.request(request)
+          .pipe(httpClientTestRequestPipe())
+          .subscribe(r => expect(r).toEqual(response));
 
-  //       expect(rSub.next).toHaveBeenCalled();
-  //       expect(rSub.next).toHaveBeenCalledTimes(1);
-  //       expect(rSub.next).toHaveBeenCalledWith(response);
+        http.verify();
+      }));
 
-  //       expect(rSub.complete).toHaveBeenCalled();
-  //       expect(rSub.complete).toHaveBeenCalledTimes(1);
+      it('should clear cache if request finalized without completing', fakeAsync(() => {
+        const request = new HttpRequest('GET', 'URL', null, { context });
+        const response = { id: 123, data: { whoAmI: 'beep boop I am a computer' } };
 
-  //       expect(rSub.closed).toBe(false);
+        const reqObservable = httpClient.request(request)
+          .subscribe();
 
-  //       rSub.subscribe(result => {
-  //         expect(result).toBe(response);
-  //       });
-  //     }));
-  //   });
+        // Only one request made
+        let req = http.expectOne(request);
 
-  //   describe('clearHeaders', () => {
-  //     let headers: HttpHeaders;
-  //     beforeEach(() => {
-  //       headers = new HttpHeaders().set(HttpCacheInterceptor['cacheHeaderName'], '');
-  //     });
-  //     it('should return clone of headers with removed cache header', () => {
-  //       expect(headers.has(HttpCacheInterceptor['cacheHeaderName'])).toEqual(true);
-  //       headers = HttpCacheInterceptor['clearHeaders']({ headers } as any);
-  //       expect(headers.has(HttpCacheInterceptor['cacheHeaderName'])).toEqual(false);
-  //     });
-  //   });
+        // Unsubscribe (close HTTP connection) before HTTP finished
+        reqObservable.unsubscribe();
 
-  //   describe('handleCacheRequest', () => {
-  //     let isCachedSpy;
-  //     const next: any = {};
-  //     const request: any = { urlWithParams: 'url?with=params' };
-  //     beforeEach(() => {
-  //       isCachedSpy = spyOn<any>(HttpCacheInterceptor, 'isCached');
-  //       spyOn<any>(HttpCacheInterceptor, 'getCached').and.returnValue(of('CACHED RESPONSE'));
-  //       spyOn<any>(HttpCacheInterceptor, 'createCache').and.returnValue(of('NEW CACHED RESPONSE'));
-  //     });
-  //     it('should return observable of getCached result if response is cached', waitForAsync(() => {
-  //       isCachedSpy.and.returnValue(true);
-  //       const req = HttpCacheInterceptor['handleCacheRequest'](request, next);
+        // New request
+        httpClient.request(request)
+          .pipe(httpClientTestRequestPipe())
+          .subscribe(r => expect(r).toEqual(response));
 
-  //       expect(req instanceof Observable).toEqual(true);
+        req = http.expectOne(request);
+        req.flush(response);
 
-  //       expect(HttpCacheInterceptor['getCached']).toHaveBeenCalled();
-  //       expect(HttpCacheInterceptor['getCached']).toHaveBeenCalledTimes(1);
-  //       expect(HttpCacheInterceptor['getCached']).toHaveBeenCalledWith(request);
-
-  //       req.subscribe((res: any) => {
-  //         expect(res).toEqual('CACHED RESPONSE');
-  //       });
-
-  //       expect(HttpCacheInterceptor['createCache']).not.toHaveBeenCalled();
-  //     }));
-  //     it('should return handler with attached cacheResponse pipe if response is not cached', waitForAsync(() => {
-  //       isCachedSpy.and.returnValue(false);
-  //       const req = HttpCacheInterceptor['handleCacheRequest'](request, next);
-
-  //       expect(req instanceof Observable).toEqual(true);
-
-  //       expect(HttpCacheInterceptor['createCache']).toHaveBeenCalled();
-  //       expect(HttpCacheInterceptor['createCache']).toHaveBeenCalledTimes(1);
-  //       expect(HttpCacheInterceptor['createCache']).toHaveBeenCalledWith(request, next);
-
-  //       req.subscribe((res: any) => {
-  //         expect(res).toEqual('NEW CACHED RESPONSE');
-  //       });
-
-  //       expect(HttpCacheInterceptor['getCached']).not.toHaveBeenCalled();
-  //     }));
-  //   });
-
-  //   describe('createCache', () => {
-  //     let next;
-  //     let responseSub;
-  //     let isCompleteSpy;
-  //     const request: any = { urlWithParams: 'url?with=params' };
-
-  //     beforeEach(() => {
-  //       isCompleteSpy = createSpy().and.returnValue(false);
-  //       spyOn<any>(HttpCacheInterceptor, 'cacheResponse');
-  //       spyOn<any>(HttpCacheInterceptor, 'setCacheSub');
-  //       spyOn<any>(HttpCacheInterceptor, 'clearCacheHeaderFromReq').and.returnValue('CLEARED REQUEST');
-  //       spyOn<any>(HttpCacheInterceptor, 'getCached').and.returnValue({
-  //         isComplete: isCompleteSpy
-  //       });
-  //       spyOn<any>(HttpCacheInterceptor, 'deleteCacheSub');
-  //       responseSub = new Subject();
-  //       next = { handle: createSpy().and.returnValue(responseSub) };
-  //     });
-
-  //     it('should trigger setCacheSub', () => {
-  //       HttpCacheInterceptor['createCache'](request, next);
-
-  //       expect(HttpCacheInterceptor['setCacheSub']).toHaveBeenCalled();
-  //       expect(HttpCacheInterceptor['setCacheSub']).toHaveBeenCalledTimes(1);
-  //       expect(HttpCacheInterceptor['setCacheSub']).toHaveBeenCalledWith(request);
-  //     });
-  //     it('should return handler with attached cacheResponse pipe', () => {
-  //       const req = HttpCacheInterceptor['createCache'](request, next);
-
-  //       expect(req instanceof Observable).toEqual(true);
-
-  //       expect(next['handle']).toHaveBeenCalled();
-  //       expect(next['handle']).toHaveBeenCalledTimes(1);
-  //       expect(next['handle']).toHaveBeenCalledWith('CLEARED REQUEST');
-
-  //       expect(HttpCacheInterceptor['clearCacheHeaderFromReq']).toHaveBeenCalled();
-  //       expect(HttpCacheInterceptor['clearCacheHeaderFromReq']).toHaveBeenCalledTimes(1);
-  //       expect(HttpCacheInterceptor['clearCacheHeaderFromReq']).toHaveBeenCalledWith(request);
-
-  //       req.subscribe((res: any) => {
-  //         expect(res).toEqual({ type: HttpEventType.Response, body: 'NEW_RESPONSE' });
-
-  //         expect(HttpCacheInterceptor['cacheResponse']).toHaveBeenCalled();
-  //         expect(HttpCacheInterceptor['cacheResponse']).toHaveBeenCalledTimes(1);
-  //         expect(HttpCacheInterceptor['cacheResponse']).toHaveBeenCalledWith(request, res);
-  //       });
-
-  //       responseSub.next({ type: HttpEventType.Sent }); // Should be ignored
-  //       responseSub.next({ type: HttpEventType.Response, body: 'NEW_RESPONSE' });
-
-  //     });
-  //     it('should remove from cache if finalized without receiving complete response', () => {
-  //       const req = CacheInterceptor['createCache'](request, next);
-
-  //       req.subscribe().unsubscribe();
-
-  //       expect(HttpCacheInterceptor['getCached']).toHaveBeenCalled();
-  //       expect(HttpCacheInterceptor['getCached']).toHaveBeenCalledTimes(1);
-  //       expect(HttpCacheInterceptor['getCached']).toHaveBeenCalledWith(request);
-  //       expect(isCompleteSpy).toHaveBeenCalled();
-  //       expect(isCompleteSpy).toHaveBeenCalledTimes(1);
-  //       expect(HttpCacheInterceptor['deleteCacheSub']).toHaveBeenCalled();
-  //       expect(HttpCacheInterceptor['deleteCacheSub']).toHaveBeenCalledTimes(1);
-  //       expect(HttpCacheInterceptor['deleteCacheSub']).toHaveBeenCalledWith(request);
-  //     });
-
-  //   });
-
-  //   describe('intercept', () => {
-  //     const request: any = { urlWithParams: 'url?with=params' };
-  //     let next;
-  //     let sub;
-  //     let isCacheReqSpy;
-  //     beforeEach(() => {
-  //       isCacheReqSpy = spyOn<any>(CacheInterceptor, 'isCacheRequest');
-  //       spyOn<any>(HttpCacheInterceptor, 'handleCacheRequest').and.returnValue(of());
-  //       next = { handle: createSpy().and.returnValue(sub = new Subject()) };
-  //     });
-  //     it('should return result of handleCacheRequest if isCacheRequest returns true', () => {
-  //       isCacheReqSpy.and.returnValue(true);
-  //       const res: Observable<any> = interceptor['intercept'](request, next);
-
-  //       expect(res).toEqual(jasmine.any(Observable));
-
-  //       expect(isCacheReqSpy).toHaveBeenCalled();
-  //       expect(isCacheReqSpy).toHaveBeenCalledTimes(1);
-  //       expect(isCacheReqSpy).toHaveBeenCalledWith(request);
-
-  //       expect(HttpCacheInterceptor['handleCacheRequest']).toHaveBeenCalled();
-  //       expect(HttpCacheInterceptor['handleCacheRequest']).toHaveBeenCalledTimes(1);
-  //       expect(HttpCacheInterceptor['handleCacheRequest']).toHaveBeenCalledWith(request, next);
-
-  //       expect(next['handle']).not.toHaveBeenCalled();
-  //     });
-  //     it('should return request with next handler if isCacheRequest returns false', () => {
-  //       isCacheReqSpy.and.returnValue(false);
-  //       const res: Observable<any> = interceptor['intercept'](request, next);
-
-  //       expect(res).toEqual(jasmine.any(Observable));
-
-  //       expect(isCacheReqSpy).toHaveBeenCalled();
-  //       expect(isCacheReqSpy).toHaveBeenCalledTimes(1);
-  //       expect(isCacheReqSpy).toHaveBeenCalledWith(request);
-
-  //       expect(HttpCacheInterceptor['handleCacheRequest']).not.toHaveBeenCalled();
-
-  //       expect(next['handle']).toHaveBeenCalled();
-  //       expect(next['handle']).toHaveBeenCalledTimes(1);
-  //       expect(next['handle']).toHaveBeenCalledWith(request);
-  //     });
-  //   });
-
+        http.verify();
+      }));
+    });
+  });
 });
