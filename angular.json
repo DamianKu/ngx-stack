@@ -29,7 +29,8 @@
           "options": {
             "main": "projects/http-cache/src/test.ts",
             "tsConfig": "projects/http-cache/tsconfig.spec.json",
-            "karmaConfig": "projects/http-cache/karma.conf.js"
+            "karmaConfig": "projects/http-cache/karma.conf.js",
+            "codeCoverage": true
           }
         }
       }
