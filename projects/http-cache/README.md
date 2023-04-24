@@ -1,24 +1,66 @@
-# HttpCache
+# @ngx-stack/http-cache
 
-This library was generated with [Angular CLI](https://github.com/angular/angular-cli) version 12.2.0.
+`@ngx-stack/http-cache` is an Angular library that provides simple caching capabilities for HTTP requests in Angular applications. It is designed to work with the `HttpClient` service provided by Angular.
 
-## Code scaffolding
+`@ngx-stack/http-cache` deals with multiple requests to the same endpoint, making sure that only one HTTP request is made, and subsequent requests are served from the cache. This library uses `HttpContext` to enable caching, instead of a most common approach of using request headers.
 
-Run `ng generate component component-name --project http-cache` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module --project http-cache`.
-> Note: Don't forget to add `--project http-cache` or else it will be added to the default project in your `angular.json` file. 
+## Installation
 
-## Build
+To install `@ngx-stack/http-cache`, run the following command in your Angular project:
 
-Run `ng build http-cache` to build the project. The build artifacts will be stored in the `dist/` directory.
+```bash
+npm install --save @ngx-stack/http-cache
+```
 
-## Publishing
+## Usage
 
-After building your library with `ng build http-cache`, go to the dist folder `cd dist/http-cache` and run `npm publish`.
+### HTTP Cache
 
-## Running unit tests
+To use `@ngx-stack/http-cache`, import the `HttpCacheModule` in your Angular module:
 
-Run `ng test http-cache` to execute the unit tests via [Karma](https://karma-runner.github.io).
+```typescript
+import { NgModule } from '@angular/core';
+import { HttpClientModule } from '@angular/common/http';
+import { HttpCacheModule } from '@ngx-stack/http-cache';
 
-## Further help
+@NgModule({
+  imports: [
+    HttpClientModule,
+    HttpCacheModule,
+    // ...
+  ],
+  // ...
+})
+export class AppModule {}
+```
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+Once the `HttpCacheModule` is imported, you can use the `cacheRequest` method provided by the `HttpClient` service to cache HTTP requests:
+
+```typescript
+import { Component } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { cacheRequest } from '@ngx-stack/http-cache';
+
+@Component({
+  selector: 'app-root',
+  template: `
+    <h1>Posts</h1>
+    <ul>
+      <li *ngFor="let post of posts">{{ post.title }}</li>
+    </ul>
+  `,
+})
+export class AppComponent {
+  posts: any[];
+
+  constructor(private http: HttpClient) {}
+
+  ngOnInit() {
+    const url = 'https://jsonplaceholder.typicode.com/posts';
+
+    this.http.get<any[]>(url, { context: cacheRequest() }).subscribe(posts => {
+      this.posts = posts;
+    });
+  }
+}
+```
