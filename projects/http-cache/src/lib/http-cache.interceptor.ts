@@ -1,14 +1,26 @@
 import { Injectable } from "@angular/core";
 import { HttpEvent, HttpEventType, HttpHandler, HttpInterceptor, HttpRequest, HttpResponse } from "@angular/common/http"
-import { Observable } from "rxjs";
+import { Observable, of } from "rxjs";
 import { filter, tap, finalize } from 'rxjs/operators'
-import { HttpCacheService } from "./http-cache.service";
+import { CacheEntry, HttpCacheService } from "./http-cache.service";
 import { HTTP_CACHE_TOKEN } from "./http-cache";
+import { HttpQueueService } from "./http-queue.service";
 
 @Injectable()
 export class HttpCacheInterceptor implements HttpInterceptor {
 
-  constructor(private readonly cacheService: HttpCacheService) { }
+  /**
+   * Return {@link CacheEntry} value as Observable.
+   * We assume that {@link CacheEntry} is defined and {@link CacheEntry['value']} is also defined.
+   * @param {CacheEntry} entry 
+   * @returns {Observable<NonNullable<CacheEntry<T>['value']>} Observable of cache entry value
+   */
+  private static asObservable<T>(entry: CacheEntry<T> | undefined): Observable<NonNullable<CacheEntry<T>['value']>> {
+    return of(entry!.value!);
+  }
+
+  constructor(private readonly cacheService: HttpCacheService,
+    private readonly queueService: HttpQueueService) { }
 
   /**
    * Check if {@link HttpRequest} {@link HttpContext} contains {@link HTTP_CACHE_TOKEN}.
@@ -20,38 +32,41 @@ export class HttpCacheInterceptor implements HttpInterceptor {
   }
 
   /**
-   * Return observable with cached {@link HttpResponse} if exists, create cache otherwise.
+   * If value is already cached, return observable of that value.
+   * If value is not cached, but request is already in the queue, return observable of that queued request.
+   * If value is not cached and request wasn't yet made, create new cache. 
+   * 
    * @param {HttpRequest} request 
    * @param {HttpHandler} next 
    * @returns {Observable<HttpEvent>}
    */
   private handleCacheRequest<T>(request: HttpRequest<T>, next: HttpHandler): Observable<HttpEvent<T>> {
     return this.cacheService.isCached(request)
-      ? this.cacheService.getCached(request)!
-      : this.createCache(request, next);
+      ? HttpCacheInterceptor.asObservable(this.cacheService.getCached(request))
+      : this.queueService.isInQueue(request)
+        ? this.queueService.getFromQueue(request)!
+        : this.createCache(request, next)
   }
 
   /**
    * Create new cache for {@link HttpRequest}.
-   * Initialize cache on the {@link cacheService} so next {@link HttpRequest} to the same URL will return that cache.
+   * Initialize queue on the {@link queueService} so next {@link HttpRequest} to the same URL will prevent multiple requests from being made.
    * @param {HttpRequest} request 
    * @param {HttpHandler} next 
    * @returns {Observable<HttpEvent>}
    */
   private createCache<T>(request: HttpRequest<T>, next: HttpHandler): Observable<HttpEvent<T>> {
-    this.cacheService.initCache(request);
+    this.queueService.addToQueue(request);
 
     return next
       .handle(request)
       .pipe(
         filter(response => response.type === HttpEventType.Response),
-        tap(response => this.cacheService.cacheResponse(request, response as HttpResponse<T>)),
-        finalize(() => {
-          if (!this.cacheService.getCached(request)?.isComplete()) {
-            // Http observable was canceled before finishing. Clear cache entry as it will never resolve
-            this.cacheService.deleteCache(request);
-          }
-        })
+        tap(response => {
+          this.cacheService.cacheResponse(request, response as HttpResponse<T>);
+          this.queueService.emit(request, response as HttpResponse<T>);
+        }),
+        finalize(() => this.queueService.removeFromQueue(request))
       );
   }
 

@@ -1,4 +1,3 @@
-
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { HTTP_INTERCEPTORS, HttpClient, HttpContext, HttpEvent, HttpEventType, HttpRequest } from '@angular/common/http';
 import { HttpCacheInterceptor } from './http-cache.interceptor';
@@ -7,6 +6,7 @@ import { pipe } from 'rxjs';
 import { HTTP_CACHE_TOKEN, cacheRequest } from './http-cache';
 import { HttpCacheService } from './http-cache.service';
 import { filter, map } from 'rxjs/operators';
+import { HttpQueueService } from './http-queue.service';
 
 function httpClientTestRequestPipe() {
   return pipe(
@@ -23,6 +23,7 @@ describe('HttpCacheInterceptor', () => {
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
       providers: [
+        HttpQueueService,
         HttpCacheService,
         { provide: HTTP_INTERCEPTORS, useClass: HttpCacheInterceptor, multi: true },
       ],
